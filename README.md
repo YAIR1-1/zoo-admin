@@ -142,18 +142,21 @@
 # מבנה נתונים וממשק משתמש (Mockups)
 
 להלן תרשים מבנה הנתונים וצילומי מסך המדגימים את הממשק העתידי של מערכת ניהול גן החיות:
+###**תרשים ERD**:
+![תרגשים ERD](https://github.com/YAIR1-1/zoo-admin/blob/main/331237032_216804237_209132588/stage1/erd.png)
 
 ### תרשים מבנה נתונים (DSD)
 ![תרשים DSD](https://github.com/YAIR1-1/zoo-admin/blob/main/331237032_216804237_209132588/stage1/DSD.png)
 
 ### מסך ראשי (Dashboard)
-![לוח בקרה](site/dashboard.png)
+![לוח בקרה](https://github.com/YAIR1-1/zoo-admin/blob/main/331237032_216804237_209132588/stage1/site/dashboard.png)
 
 ### ניהול פרויקטים
-![פרויקטים](site/projects.png)
+![פרויקטים](https://github.com/YAIR1-1/zoo-admin/blob/main/331237032_216804237_209132588/stage1/site/projects.png)
 
 ### דוחות
-![דוחות](site/reports.png)
+![דוחות](https://github.com/YAIR1-1/zoo-admin/blob/main/331237032_216804237_209132588/stage1/site/reports.png)
 
 ### מערכת בקרה
-![בקרה](site/control.png)
+![בקרה](https://github.com/YAIR1-1/zoo-admin/blob/main/331237032_216804237_209132588/stage1/site/control.png)
+
