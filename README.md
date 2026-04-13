@@ -144,7 +144,7 @@
 להלן תרשים מבנה הנתונים וצילומי מסך המדגימים את הממשק העתידי של מערכת ניהול גן החיות:
 
 ### תרשים מבנה נתונים (DSD)
-![תרשים DSD](site/DSD.png)
+![תרשים DSD](https://github.com/YAIR1-1/zoo-admin/blob/main/331237032_216804237_209132588/stage1/DSD.png)
 
 ### מסך ראשי (Dashboard)
 ![לוח בקרה](site/dashboard.png)
