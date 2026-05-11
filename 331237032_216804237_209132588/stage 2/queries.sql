@@ -2,6 +2,46 @@
 -- קובץ Queries.sql
 -- =============================================
 
+--שאילתות select
+
+SELECT DISTINCT m.first_name, m.last_name, p.project_name
+FROM manager m
+JOIN project p ON m.manager_id = p.manager_id
+JOIN task t ON p.project_id = t.project_id
+WHERE t.status != 'Completed';
+
+SELECT m.first_name, m.last_name, p.project_name
+FROM manager m
+JOIN project p ON m.manager_id = p.manager_id
+WHERE EXISTS (
+    SELECT 1 
+    FROM task t 
+    WHERE t.project_id = p.project_id 
+    AND t.status != 'Completed'
+);
+
+SELECT 
+    p.project_name,
+    EXTRACT(MONTH FROM p.start_date) AS start_month,
+    (SELECT COUNT(*) 
+     FROM task t 
+     WHERE t.project_id = p.project_id 
+     AND t.due_date < CURRENT_DATE 
+     AND t.status != 'Completed') AS delayed_tasks_count
+FROM project p
+WHERE EXTRACT(YEAR FROM p.start_date) = EXTRACT(YEAR FROM CURRENT_DATE);
+
+SELECT 
+    p.project_name,
+    EXTRACT(MONTH FROM p.start_date) AS start_month,
+    COUNT(t.task_id) AS delayed_tasks_count
+FROM project p
+LEFT JOIN task t ON p.project_id = t.project_id 
+    AND t.due_date < CURRENT_DATE 
+    AND t.status != 'Completed'
+WHERE EXTRACT(YEAR FROM p.start_date) = EXTRACT(YEAR FROM CURRENT_DATE)
+GROUP BY p.project_id, p.project_name, EXTRACT(MONTH FROM p.start_date);
+
 -- שאילתות UPDATE 
 
 -- 1. קידום מנהלים ותיקים
