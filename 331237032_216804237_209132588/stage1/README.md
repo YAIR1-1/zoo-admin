@@ -165,24 +165,191 @@
 
 
 
-# שלב ג' - אינטגרציה ומבטים
+## שלב ג — אינטגרציה ומבטים
 
-## מבנה המערכת לאחר אינטגרציה
+## תיאור כללי
 
-בשלב זה בוצעה אינטגרציה מלאה בין בסיס הנתונים המקורי לבין בסיס הנתונים שקבלנו מהגיבוי. הטבלאות הקיימות עוכנו ועוצבו מחדש באמצעות פקודות `ALTER TABLE` כדי לייצר מערכת אחת אחודה התואמת את תרשימי ה-ERD וה-DSD המשולבים.
+בשלב זה ביצענו אינטגרציה בין שתי מערכות:
+- **המערכת שלנו** — מערכת ניהול פרויקטים (Manager, Project, Task, Report, KPI, Audit)
+- **המערכת שקיבלנו** — מערכת כרטיסים ומבקרים (Visitors, Employees, Transactions, Ticket_Types, Transaction_Items, Memberships)
 
 ---
 
-## מבטים ושאילתות (Views & Queries)
+## קבצים
 
-### מבט 1: נקודת המבט של האגף המקורי (פרויקטים ומנהלים)
-המבט מציג איזה מנהל אחראי על איזה פרויקט ואת הסטטוס שלו.
+| קובץ | תיאור |
+|------|--------|
+| `Integrate.sql` | יצירת טבלאות, שינוי טבלאות קיימות, קשרי אינטגרציה, הכנסת נתונים |
+| `Views.sql` | 3 מבטים + 2 שאילתות לכל מבט |
+| `ERD_Combined.erdplus` | תרשים ERD המשולב |
+
+---
+
+## הינדוס לאחור (Reverse Engineering)
+
+קיבלנו גיבוי של המערכת השנייה והרצנו אותו בסביבה המקומית. מתוך הטבלאות שנוצרו בנינו את ה-ERD לפי האלגוריתם הבא:
+
+1. כל טבלה הפכה לישות (Entity)
+2. כל עמודה רגילה הפכה לתכונה (Attribute)
+3. עמודת PRIMARY KEY — תכונה מזהה (עם קו תחתי)
+4. עמודת FOREIGN KEY — קשר (Relationship) בין שתי ישויות
+5. טבלה עם שני FK — קשר רבים-לרבים (M:N)
+6. NOT NULL — השתתפות מלאה בקשר
+
+---
+
+## החלטות האינטגרציה
+
+### קשר 1 — Manager supervises Employees (1:N)
+**החלטה:** שתי המערכות שייכות לאותו ארגון. ה-`Manager` ממערכת ניהול הפרויקטים מפקח על ה-`Employees` ממערכת הכרטיסים.
+
+**יישום:**
+```sql
+ALTER TABLE Employees ADD COLUMN manager_ID INT;
+ALTER TABLE Employees ADD CONSTRAINT fk_emp_manager
+    FOREIGN KEY (manager_ID) REFERENCES manager(manager_id);
+```
+
+### קשר 2 — Manager approves Transactions (1:N)
+**החלטה:** כל עסקה במערכת הכרטיסים טעונה אישור מנהל מהמערכת הראשונה — מה שמקשר בין שתי המערכות עסקית.
+
+**יישום:**
+```sql
+ALTER TABLE Transactions ADD COLUMN Manager_ID INT;
+ALTER TABLE Transactions ADD CONSTRAINT fk_trans_manager
+    FOREIGN KEY (Manager_ID) REFERENCES manager(manager_id);
+```
+
+### שינויים נוספים בטבלאות קיימות
+```sql
+ALTER TABLE users RENAME TO Employees;
+ALTER TABLE Employees RENAME COLUMN id TO Employee_ID;
+ALTER TABLE tickets RENAME TO Transactions;
+ALTER TABLE Transactions RENAME COLUMN ticketid TO Transaction_ID;
+```
+
+---
+
+## מבטים (Views)
+
+### מבט 1 — view_manager_projects
+מנקודת המבט של המערכת שלנו. מציג מנהל + הפרויקטים שלו + המשימות.
 
 ```sql
-CREATE OR REPLACE VIEW Manager_Projects_View AS
-SELECT m.first_name AS Manager_First_Name, 
-       m.last_name AS Manager_Last_Name, 
-       p.project_name, 
-       p.status
+CREATE VIEW view_manager_projects AS
+SELECT m.manager_id, m.first_name || ' ' || m.last_name AS manager_name,
+       m.seniority_level, p.project_id, p.project_name,
+       p.status AS project_status, p.budget,
+       t.task_id, t.task_name, t.priority, t.status AS task_status
 FROM manager m
-JOIN project p ON m.manager_id = p.manager_id;
+JOIN project p ON p.manager_id = m.manager_id
+JOIN task    t ON t.project_id  = p.project_id;
+```
+
+**שאילתה 1** — פרויקטים פעילים ממוינים לפי תקציב:
+```sql
+SELECT manager_name, project_name, budget
+FROM view_manager_projects
+WHERE project_status = 'Active'
+ORDER BY budget DESC;
+```
+
+**שאילתה 2** — כמה משימות בעדיפות גבוהה לכל מנהל:
+```sql
+SELECT manager_name, COUNT(*) AS high_priority_tasks
+FROM view_manager_projects
+WHERE task_status = 'High'
+GROUP BY manager_name
+ORDER BY high_priority_tasks DESC;
+```
+
+---
+
+### מבט 2 — view_visitor_purchases
+מנקודת המבט של המערכת השנייה. מציג מבקר + העסקאות שלו + סוגי הכרטיסים שקנה.
+
+```sql
+CREATE VIEW view_visitor_purchases AS
+SELECT v.visitorid, v.first_name || ' ' || v.last_name AS visitor_name,
+       v.email, tr.Transaction_ID, tr.Transaction_Date,
+       tr.Payment_Method, tr.Total_Amount,
+       tt.Ticket_Name, tt.Category, ti.Quantity, ti.Price_At_Sale
+FROM visitors v
+JOIN Transactions      tr ON tr.Visitor_ID     = v.visitorid
+JOIN Transaction_Items ti ON ti.Transaction_ID = tr.Transaction_ID
+JOIN Ticket_Types      tt ON tt.Ticket_ID      = ti.Ticket_ID;
+```
+
+**שאילתה 1** — סך הקניות של כל מבקר:
+```sql
+SELECT visitor_name, COUNT(Transaction_ID) AS num_transactions,
+       SUM(Total_Amount) AS total_spent
+FROM view_visitor_purchases
+GROUP BY visitor_name
+ORDER BY total_spent DESC;
+```
+
+**שאילתה 2** — איזה סוג כרטיס הכי פופולרי:
+```sql
+SELECT Ticket_Name, Category, SUM(Quantity) AS total_sold
+FROM view_visitor_purchases
+GROUP BY Ticket_Name, Category
+ORDER BY total_sold DESC;
+```
+
+---
+
+### מבט 3 — view_transaction_approval (מבט משולב)
+מבט המשלב את שתי המערכות. מציג עסקאות + המנהל שאישר + העובד שביצע.
+
+```sql
+CREATE VIEW view_transaction_approval AS
+SELECT tr.Transaction_ID, tr.Transaction_Date,
+       tr.Payment_Method, tr.Total_Amount,
+       e.First_Name || ' ' || e.Last_Name   AS employee_name,
+       m.first_name || ' ' || m.last_name   AS approving_manager,
+       m.seniority_level,
+       v.first_name || ' ' || v.last_name   AS visitor_name
+FROM Transactions tr
+JOIN Employees e ON e.Employee_ID = tr.Employee_ID
+JOIN manager   m ON m.manager_id  = tr.Manager_ID
+JOIN visitors  v ON v.visitorid   = tr.Visitor_ID;
+```
+
+**שאילתה 1** — סך העסקאות שכל מנהל אישר:
+```sql
+SELECT approving_manager, COUNT(*) AS total_approved,
+       SUM(Total_Amount) AS total_amount
+FROM view_transaction_approval
+GROUP BY approving_manager
+ORDER BY total_amount DESC;
+```
+
+**שאילתה 2** — עסקאות מעל 100 ש"ח עם פרטי המנהל והעובד:
+```sql
+SELECT Transaction_Date, Total_Amount, employee_name,
+       approving_manager, visitor_name
+FROM view_transaction_approval
+WHERE Total_Amount > 100
+ORDER BY Transaction_Date;
+```
+
+---
+
+## בדיקת נתונים
+
+```sql
+SELECT 'audit'             AS table_name, COUNT(*) AS row_count FROM audit
+UNION ALL SELECT 'kpi',             COUNT(*) FROM kpi
+UNION ALL SELECT 'manager',         COUNT(*) FROM manager
+UNION ALL SELECT 'project',         COUNT(*) FROM project
+UNION ALL SELECT 'report',          COUNT(*) FROM report
+UNION ALL SELECT 'task',            COUNT(*) FROM task
+UNION ALL SELECT 'visitors',        COUNT(*) FROM visitors
+UNION ALL SELECT 'Employees',       COUNT(*) FROM Employees
+UNION ALL SELECT 'Transactions',    COUNT(*) FROM Transactions
+UNION ALL SELECT 'Transaction_Items',COUNT(*) FROM Transaction_Items
+UNION ALL SELECT 'Ticket_Types',    COUNT(*) FROM Ticket_Types
+UNION ALL SELECT 'Memberships',     COUNT(*) FROM Memberships;
+```
+
