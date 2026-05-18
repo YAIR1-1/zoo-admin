@@ -161,3 +161,28 @@
 ### מערכת בקרה
 ![בקרה](https://github.com/YAIR1-1/zoo-admin/blob/main/331237032_216804237_209132588/stage1/site/control.png)
 
+
+
+
+
+# שלב ג' - אינטגרציה ומבטים
+
+## מבנה המערכת לאחר אינטגרציה
+
+בשלב זה בוצעה אינטגרציה מלאה בין בסיס הנתונים המקורי לבין בסיס הנתונים שקבלנו מהגיבוי. הטבלאות הקיימות עוכנו ועוצבו מחדש באמצעות פקודות `ALTER TABLE` כדי לייצר מערכת אחת אחודה התואמת את תרשימי ה-ERD וה-DSD המשולבים.
+
+---
+
+## מבטים ושאילתות (Views & Queries)
+
+### מבט 1: נקודת המבט של האגף המקורי (פרויקטים ומנהלים)
+המבט מציג איזה מנהל אחראי על איזה פרויקט ואת הסטטוס שלו.
+
+```sql
+CREATE OR REPLACE VIEW Manager_Projects_View AS
+SELECT m.first_name AS Manager_First_Name, 
+       m.last_name AS Manager_Last_Name, 
+       p.project_name, 
+       p.status
+FROM manager m
+JOIN project p ON m.manager_id = p.manager_id;
